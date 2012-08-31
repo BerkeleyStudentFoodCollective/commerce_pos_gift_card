@@ -1,0 +1,1 @@
+Adds gift card support to Commerce POS. Better documentation coming eventually.

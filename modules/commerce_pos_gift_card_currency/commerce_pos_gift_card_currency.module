@@ -1,0 +1,139 @@
+<?php
+
+/**
+ * Implements hook_commerce_pos_gift_card_type_info().
+ */
+function commerce_pos_gift_card_currency_commerce_pos_gift_card_type_info() {
+   return array(
+    'currency' => array(
+      'name' => t('Currency'),
+      'description' => t('A basic gift card whose value is some amount of a currency.'),
+      'base' => 'commerce_pos_gift_card_currency',
+    ),
+   );
+ }
+
+ /**
+  * Configuration callback for the currency gift card type.
+  */
+function commerce_pos_gift_card_currency_configuration($gift_card_type) {
+  $type = $gift_card_type['type'];
+
+  commerce_price_create_instance('commerce_pos_gift_card_cur_value', 'commerce_pos_gift_card', $type, t('Value'));
+}
+
+ /**
+  * Configuration callback for the currency gift card type.
+  */
+function commerce_pos_gift_card_currency_validate_payment($gift_card, $data) {
+ //Make sure the amount is numeric and the currency code is valid.
+ $return = array('error' => array());
+
+ $amount = (int) $data['amount'];
+ if (empty($amount)) {
+   $return['error'][] = array(
+     'error' => 'amount',
+     'message' => t('Invalid amount.'),
+   );
+ }
+
+ $currency = commerce_currency_load($data['currency_code']);
+ if (empty($currency)) {
+   $return['error'][] = array(
+     'error' => 'currency',
+     'message' => t('Invalid currency.'),
+   );
+ }
+
+ //Make sure that the gift card balance is sufficient for this payment.
+ $wrapper = entity_metadata_wrapper('commerce_pos_gift_card', $gift_card);
+ $amount = (int) $data['amount'];
+ $payment_currency_code = $data['currency_code'];
+ $gift_card_currency_code = $wrapper->commerce_pos_gift_card_cur_value->currency_code->value();
+
+ $deduction_amount = commerce_currency_convert($amount, $payment_currency_code, $gift_card_currency_code);
+ if ($deduction_amount > $wrapper->commerce_pos_gift_card_cur_value->amount->value()) {
+   $return['error'][] = array(
+     'error' => 'insufficient',
+     'message' => t('Insufficient balance'),
+   );
+ }
+
+ return $return;
+}
+
+/**
+ * Configuration callback for the currency gift card type.
+ */
+function commerce_pos_gift_card_currency_process_payment($gift_card, $data) {
+  //Adjust the gift card balance.
+  $wrapper = entity_metadata_wrapper('commerce_pos_gift_card', $gift_card);
+  $amount = (int) $data['amount'];
+  $payment_currency_code = $data['currency_code'];
+  $gift_card_currency_code = $wrapper->commerce_pos_gift_card_cur_value->currency_code->value();
+
+  $deduction_amount = commerce_currency_convert($amount, $payment_currency_code, $gift_card_currency_code);
+  $wrapper->commerce_pos_gift_card_cur_value->amount = $wrapper->commerce_pos_gift_card_cur_value->amount->value() - $deduction_amount;
+  $wrapper->save();
+
+  return array(
+    'amount' => $wrapper->commerce_pos_gift_card_cur_value->amount->value(),
+    'currency_code' => $wrapper->commerce_pos_gift_card_cur_value->currency_code->value(),
+    'format' => commerce_currency_format($wrapper->commerce_pos_gift_card_cur_value->amount->value(), $wrapper->commerce_pos_gift_card_cur_value->currency_code->value()),
+  );
+}
+
+/**
+ * Balance callback for the currency gift card type.
+ */
+function commerce_pos_gift_card_currency_info($gift_card) {
+  $wrapper = entity_metadata_wrapper('commerce_pos_gift_card', $gift_card);
+  $info = $wrapper->commerce_pos_gift_card_cur_value->value();
+
+  $info['format'] = commerce_currency_format($info['amount'], $info['currency_code']);
+  $info['empty'] = ($info['amount'] == 0);
+
+  return $info;
+}
+
+/**
+ * Add balance callback for the currency gift card type.
+ */
+function commerce_pos_gift_card_currency_add_balance($gift_card, $data) {
+  $wrapper = entity_metadata_wrapper('commerce_pos_gift_card', $gift_card);
+  $add_amount = commerce_currency_convert($data['amount'], $data['currency_code'], $wrapper->commerce_pos_gift_card_cur_value->currency_code->value());
+  $wrapper->commerce_pos_gift_card_cur_value->amount = $add_amount + $wrapper->commerce_pos_gift_card_cur_value->amount->value();
+
+  return array(
+    'amount' => $wrapper->commerce_pos_gift_card_cur_value->amount->value(),
+    'currency_code' => $wrapper->commerce_pos_gift_card_cur_value->currency_code->value(),
+    'format' => commerce_currency_format($wrapper->commerce_pos_gift_card_cur_value->amount->value(), $wrapper->commerce_pos_gift_card_cur_value->currency_code->value()),
+  );
+}
+
+/**
+ * Void callback for the currency gift card type.
+ */
+function commerce_pos_gift_card_currency_void($transaction, $gift_card) {
+  $wrapper = entity_metadata_wrapper('commerce_pos_gift_card', $gift_card);
+  $data = $transaction['data'];
+
+  if ($transaction['status'] != COMMERCE_POS_GIFT_CARD_STATUS_VOID) {
+    $sign = (($transaction['type'] == 'payment') ? -1 : 1);
+    $amount = commerce_currency_convert($data['amount'], $data['currency_code'], $wrapper->commerce_pos_gift_card_cur_value->currency_code->value());
+    $wrapper->commerce_pos_gift_card_cur_value->amount = $wrapper->commerce_pos_gift_card_cur_value->amount->value() - $sign * $amount;
+  }
+
+  return COMMERCE_POS_GIFT_CARD_STATUS_VOID;
+}
+
+/**
+ * Format transaction amount callback for currency gift card type.
+ */
+function commerce_pos_gift_card_currency_format_transaction_amount($transaction, $gift_card) {
+   $wrapper = entity_metadata_wrapper('commerce_pos_gift_card', $gift_card);
+   $data = $transaction['data'];
+
+   return commerce_currency_format($data['amount'], $data['currency_code']);
+}
+

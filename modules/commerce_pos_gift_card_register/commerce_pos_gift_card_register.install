@@ -1,0 +1,51 @@
+<?php
+
+/**
+ * Implements hook_field_schema().
+ */
+function commerce_pos_gift_card_register_field_schema($field) {
+  if ($field['type'] == 'commerce_pos_gift_card_reference') {
+    return array(
+      'columns' => array(
+        'card_number' => array(
+          'description' => 'The unique identifier for the gift card.',
+          'type' => 'varchar',
+          'length' => 32,
+          'default' => '',
+        ),
+        'endpoint' => array(
+          'description' => 'The endpoint from which the gift card was purchased.',
+          'type' => 'varchar',
+          'length' => 255,
+          'not null' => TRUE,
+        ),
+        'transaction_id' => array(
+          'description' => 'The unique identifier for the gift card.',
+          'type' => 'varchar',
+          'length' => 32,
+          'default' => '',
+        ),
+        'data' => array(
+          'description' => 'A serialized array of additional data.',
+          'type' => 'text',
+          'size' => 'big',
+          'not null' => FALSE,
+          'serialize' => TRUE,
+        ),
+      ),
+      'indexes' => array(
+        'card_number' => array('card_number'),
+        'endpoint' => array('endpoint'),
+      ),
+    );
+  }
+}
+
+/**
+ * Implements hook_uninstall().
+ */
+function commerce_pos_gift_card_reference_uninstall() {
+  // Delete any product reference fields.
+  module_load_include('module', 'commerce');
+  commerce_delete_fields('commerce_pos_gift_card_reference');
+}

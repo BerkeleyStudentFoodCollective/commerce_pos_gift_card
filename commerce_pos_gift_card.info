@@ -1,0 +1,26 @@
+name = Commerce POS Gift Card
+description = Defines the Gift Card entity and related features.
+package = Commerce (contrib)
+dependencies[] = rules
+dependencies[] = commerce
+dependencies[] = services
+dependencies[] = ctools
+core = 7.x
+
+; Module includes
+files[] = includes/commerce_pos_gift_card.controller.inc
+
+; Views handlers
+files[] = includes/views/handlers/commerce_pos_gift_card_handler_area_empty_text.inc
+files[] = includes/views/handlers/commerce_pos_gift_card_handler_argument_gift_card_id.inc
+files[] = includes/views/handlers/commerce_pos_gift_card_handler_field_gift_card.inc
+files[] = includes/views/handlers/commerce_pos_gift_card_handler_field_gift_card_type.inc
+files[] = includes/views/handlers/commerce_pos_gift_card_handler_field_gift_card_link.inc
+files[] = includes/views/handlers/commerce_pos_gift_card_handler_field_gift_card_link_delete.inc
+files[] = includes/views/handlers/commerce_pos_gift_card_handler_field_gift_card_link_edit.inc
+files[] = includes/views/handlers/commerce_pos_gift_card_handler_field_gift_card_operations.inc
+files[] = includes/views/handlers/commerce_pos_gift_card_handler_filter_gift_card_type.inc
+
+; Translation handler
+files[] = includes/commerce_pos_gift_card.translation_handler.inc
+

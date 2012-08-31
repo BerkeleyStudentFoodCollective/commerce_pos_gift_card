@@ -1,0 +1,250 @@
+<?php
+
+
+/**
+ * Implements hook_schema().
+ */
+function commerce_pos_gift_card_schema() {
+  $schema = array();
+
+  $schema['commerce_pos_gift_card'] = array(
+    'description' => 'The base table for gift cards.',
+    'fields' => array(
+      'gift_card_id' => array(
+        'description' => 'The primary identifier for a gift_card, used internally only.',
+        'type' => 'serial',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+      ),
+      'revision_id' => array(
+        'description' => 'The current {commerce_pos_gift_card_revision}.revision_id version identifier.',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => FALSE,
+        'default' => NULL,
+      ),
+      'card_number' => array(
+        'description' => 'The unique identifier for a gift card.',
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+      ),
+      'type' => array(
+        'description' => 'The {commerce_pos_gift_card_type}.type of this gift card.',
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+        'default' => '',
+      ),
+      'language' => array(
+        'description' => 'The {languages}.language of this gift card.',
+        'type' => 'varchar',
+        'length' => 32,
+        'not null' => TRUE,
+        'default' => '',
+      ),
+      'uid' => array(
+        'description' => 'The {users}.uid that created this gift card.',
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'status' => array(
+        'description' => 'Boolean indicating whether or not the gift card can be used for payment.',
+        'type' => 'int',
+        'size' => 'tiny',
+        'not null' => TRUE,
+        'default' => 1,
+      ),
+      'created' => array(
+        'description' => 'The Unix timestamp when the gift card was created.',
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'changed' => array(
+        'description' => 'The Unix timestamp when the gift card was most recently saved.',
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'data' => array(
+        'type' => 'blob',
+        'not null' => FALSE,
+        'size' => 'big',
+        'serialize' => TRUE,
+        'description' => 'A serialized array of additional data.',
+      ),
+    ),
+    'primary key' => array('gift_card_id'),
+    'indexes' => array(
+      'card_type' => array('type'),
+      'uid' => array('uid'),
+    ),
+    'unique keys' => array(
+      'card_number' => array('card_number'),
+      'revision_id' => array('revision_id'),
+    ),
+    'foreign keys' => array(
+      'current_revision' => array(
+        'table' => 'commerce_pos_gift_card_revision',
+        'columns'=> array('revision_id' => 'revision_id'),
+      ),
+      'creator' => array(
+        'table' => 'users',
+        'columns' => array('uid' => 'uid'),
+      ),
+    ),
+  );
+
+  $schema['commerce_pos_gift_card_revision'] = array(
+    'description' => 'Saves information about each saved revision of a {commerce_pos_gift_card}.',
+    'fields' => array(
+      'gift_card_id' => array(
+        'description' => 'The {commerce_pos_gift_card}.gift_card_id of the gift card this revision belongs to.',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'revision_id' => array(
+        'description' => 'The primary identifier for this revision.',
+        'type' => 'serial',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+      ),
+      'card_number' => array(
+        'description' => 'The unique, human-readable identifier of a gift card for this revision.',
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+      ),
+      'revision_uid' => array(
+        'description' => 'The {users}.uid that owns the gift card at this revision.',
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'status' => array(
+        'description' => 'The status of this revision.',
+        'type' => 'int',
+        'size' => 'tiny',
+        'not null' => TRUE,
+        'default' => 1,
+      ),
+      'log' => array(
+        'description' => 'The log entry explaining the changes in this version.',
+        'type' => 'text',
+        'not null' => TRUE,
+        'size' => 'big',
+      ),
+      'revision_timestamp' => array(
+        'description' => 'The Unix timestamp when this revision was created.',
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'data' => array(
+        'type' => 'blob',
+        'not null' => FALSE,
+        'size' => 'big',
+        'serialize' => TRUE,
+        'description' => 'A serialized array of additional data for this revision.',
+      ),
+    ),
+    'primary key' => array('revision_id'),
+    'indexes' => array(
+      'gift_card_id' => array('gift_card_id'),
+      'revision_uid' => array('revision_uid'),
+    ),
+    'foreign keys' => array(
+      'gift_card' => array(
+        'table' => 'commerce_pos_gift_card',
+        'columns' => array('gift_card_id' => 'gift_card_id'),
+      ),
+      'owner' => array(
+        'table' => 'users',
+        'columns' => array('revision_uid' => 'uid'),
+      ),
+    ),
+  );
+  return $schema;
+}
+
+/**
+ * Implements hook_field_schema().
+ */
+function commerce_pos_gift_card_field_schema($field) {
+  if ($field['type'] == 'commerce_pos_gift_card_history') {
+    return array(
+      'columns' => array(
+        'transaction_id' => array(
+          'description' => 'The unique identifier for the transaction.',
+          'type' => 'varchar',
+          'length' => 32,
+          'default' => '',
+        ),
+        'status' => array(
+          'description' => 'The status of the transaction associated to this item.',
+          'type' => 'varchar',
+          'length' => 32,
+          'not null' => TRUE,
+        ),
+        'uid' => array(
+          'description' => 'The ID of the user that created this transaction.',
+          'type' => 'varchar',
+          'length' => 32,
+          'default' => '',
+        ),
+        'type' => array(
+          'description' => 'The type of the transaction.',
+          'type' => 'varchar',
+          'length' => 32,
+          'not null' => TRUE,
+        ),
+        'created' => array(
+          'description' => 'The Unix timestamp when the gift card was created.',
+          'type' => 'int',
+          'not null' => TRUE,
+          'default' => 0,
+        ),
+        'changed' => array(
+          'description' => 'The Unix timestamp when the gift card was most recently saved.',
+          'type' => 'int',
+          'not null' => TRUE,
+          'default' => 0,
+        ),        
+        'data' => array(
+          'description' => 'A serialized array of additional data.',
+          'type' => 'text',
+          'size' => 'big',
+          'not null' => FALSE,
+          'serialize' => TRUE,
+        ),
+      ),
+      'indexes' => array(
+        'status' => array('status'),
+        'uid' => array('uid'),
+      ),
+      'unique keys' => array(
+        'transaction_id' => array('transaction_id'),
+      ),
+      'foreign keys' => array(
+        'user_uid' => array(
+          'table' => 'user',
+          'columns' => array('uid'),
+        ),
+      ),
+    );    
+  }
+}
+
+/**
+ * Implements hook_uninstall().
+ */
+function commerce_pos_gift_card_uninstall() {
+  // Delete any field instance attached to a gift card type.
+  module_load_include('module', 'commerce');
+  commerce_delete_instances('commerce_pos_gift_card');
+  commerce_delete_fields('commerce_pos_gift_card_history');
+}

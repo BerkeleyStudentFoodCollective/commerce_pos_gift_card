@@ -1,0 +1,16 @@
+name = Gift Card UI
+description = Exposes a default UI for Gift Cards through gift card edit forms and default Views.
+package = Commerce (contrib)
+dependencies[] = contextual
+dependencies[] = field_ui
+dependencies[] = commerce
+dependencies[] = commerce_ui
+dependencies[] = commerce_pos_gift_card
+dependencies[] = views
+core = 7.x
+configure = admin/commerce/gift_cards/types
+
+; Simple tests
+files[] = tests/commerce_pos_gift_card_ui.test
+
+

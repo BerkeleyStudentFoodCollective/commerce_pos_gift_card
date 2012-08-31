@@ -1,0 +1,8 @@
+name = Commerce POS Gift Card Currency
+description = Defines support for a basic currency-valued gift card.
+package = Commerce (contrib)
+dependencies[] = commerce_price
+dependencies[] = commerce_pos_gift_card
+
+core = 7.x
+

@@ -1,0 +1,1583 @@
+<?php
+
+/**
+ * @file
+ * Defines the basic Commerce POS Gift Card entity, including the entity itself, the
+ * bundle definitions (gift card types), and various API functions to manage
+ * gift cards and interact with them through forms.
+ */
+
+define('COMMERCE_POS_GIFT_CARD_STATUS_SUCCESS', 'success');
+define('COMMERCE_POS_GIFT_CARD_STATUS_FAILURE', 'failure');
+define('COMMERCE_POS_GIFT_CARD_STATUS_VOID', 'void');
+
+/**
+ * Implements hook_menu().
+ */
+/*function commerce_pos_gift_card_menu() {
+  $items = array();
+
+  $items['commerce_pos_gift_card/autocomplete'] = array(
+    'title' => 'commerce_pos_gift_card autocomplete',
+    'page callback' => 'commerce_pos_gift_card_autocomplete',
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
+  );
+
+  return $items;
+}*/
+
+/**
+ *
+ */
+
+/**
+ * Implements hook_hook_info().
+ */
+function commerce_pos_gift_card_hook_info() {
+  $hooks = array(
+    'commerce_pos_gift_card_type_info' => array(
+      'group' => 'commerce',
+    ),
+    'commerce_pos_gift_card_type_info_alter' => array(
+      'group' => 'commerce',
+    ),
+    'commerce_pos_gift_card_type_insert' => array(
+      'group' => 'commerce',
+    ),
+    'commerce_pos_gift_card_type_update' => array(
+      'group' => 'commerce',
+    ),
+    'commerce_pos_gift_card_type_delete' => array(
+      'group' => 'commerce',
+    ),
+    'commerce_pos_gift_card_uri' => array(
+      'group' => 'commerce',
+    ),
+    'commerce_pos_gift_card_view' => array(
+      'group' => 'commerce',
+    ),
+    'commerce_pos_gift_card_presave' => array(
+      'group' => 'commerce',
+    ),
+    'commerce_pos_gift_card_insert' => array(
+      'group' => 'commerce',
+    ),
+    'commerce_pos_gift_card_update' => array(
+      'group' => 'commerce',
+    ),
+    'commerce_pos_gift_card_can_delete' => array(
+      'group' => 'commerce',
+    ),
+    'commerce_pos_gift_card_delete' => array(
+      'group' => 'commerce',
+    ),
+  );
+
+  return $hooks;
+}
+
+/**
+ * Implements hook_entity_info().
+ */
+function commerce_pos_gift_card_entity_info() {
+  $return = array(
+    'commerce_pos_gift_card' => array(
+      'label' => t('Commerce POS Gift Card'),
+      'controller class' => 'CommercePosGiftCardEntityController',
+      'base table' => 'commerce_pos_gift_card',
+      'revision table' => 'commerce_pos_gift_card_revision',
+      'fieldable' => TRUE,
+      'entity keys' => array(
+        'id' => 'gift_card_id',
+        'bundle' => 'type',
+        'label' => 'card_number',
+        'revision' => 'revision_id',
+      ),
+      'bundle keys' => array(
+        'bundle' => 'type',
+      ),
+      'bundles' => array(),
+      'load hook' => 'commerce_pos_gift_card_load',
+      'view modes' => array(
+        'full' => array(
+          'label' => t('Admin display'),
+          'custom settings' => FALSE,
+        ),
+      ),
+      'uri callback' => 'commerce_pos_gift_card_uri',
+      'metadata controller class' => '',
+      'token type' => 'commerce-pos-gift-card',
+      'access callback' => 'commerce_entity_access',
+      'access arguments' => array(
+        'user key' => 'uid',
+        'access tag' => 'commerce_pos_gift_card_access',
+      ),
+      'permission labels' => array(
+        'singular' => t('Gift card'),
+        'plural' => t('Gift cards'),
+      ),
+
+      // Add translation support.
+      'translation' => array(
+        'locale' => TRUE,
+        'entity_translation' => array(
+          'class' => 'EntityTranslationCommercePosGiftCardHandler',
+        ),
+      ),
+
+      // Add title replacement support for translations.
+      'field replacement' => array(
+        'title' => array(
+          'field' => array(
+            'type' => 'text',
+            'cardinality' => 1,
+            'translatable' => TRUE,
+          ),
+          'instance' => array(
+            'label' => t('Title'),
+            'required' => TRUE,
+            'settings' => array(
+              'text_processing' => 0,
+            ),
+            'widget' => array(
+              'weight' => -5,
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+
+  foreach (commerce_pos_gift_card_type_get_name() as $type => $name) {
+    $return['commerce_pos_gift_card']['bundles'][$type] = array(
+      'label' => $name,
+    );
+  }
+
+  return $return;
+}
+
+/**
+ * Entity uri callback: gives modules a chance to specify a path for a gift card.
+ */
+function commerce_pos_gift_card_uri($gift_card) {
+  // Allow modules to specify a path, returning the first one found.
+  foreach (module_implements('commerce_pos_gift_card_uri') as $module) {
+    $uri = module_invoke($module, 'commerce_pos_gift_card_uri', $gift_card);
+
+    // If the implementation returned data, use that now.
+    if (!empty($uri)) {
+      return $uri;
+    }
+  }
+
+  return NULL;
+}
+
+/**
+ * Implements hook_field_extra_fields().
+ */
+function commerce_pos_gift_card_field_extra_fields() {
+  $extra = array();
+
+  foreach (commerce_pos_gift_card_types() as $type => $gift_card_type) {
+    $extra['commerce_pos_gift_card'][$type] = array(
+      'form' => array(
+        'card_number' => array(
+          'label' => t('Gift card number'),
+          'description' => t('Gift card number form element'),
+          'weight' => -10,
+        ),
+        'status' => array(
+          'label' => t('Status'),
+          'description' => t('Gift card module status form element'),
+          'weight' => 35,
+        ),
+      ),
+      'display' => array(
+        'card_number' => array(
+          'label' => t('Gift card number'),
+          'description' => t('The customer-facing identifier of the gift card'),
+          'theme' => 'commerce_pos_gift_card_number',
+          'weight' => -10,
+        ),
+      ),
+    );
+  }
+
+  return $extra;
+}
+
+/**
+ * Implements hook_theme().
+ */
+function commerce_pos_gift_card_theme() {
+  return array(
+    'commerce_pos_gift_card_number' => array(
+      'variables' => array('card_number' => NULL, 'label' => NULL, 'gift_card' => NULL),
+      'path' => drupal_get_path('module', 'commerce_pos_gift_card') . '/theme',
+      'template' => 'commerce-pos-gift-card-number',
+    ),
+    'commerce_pos_gift_card_status' => array(
+      'variables' => array('status' => NULL, 'label' => NULL, 'gift_card' => NULL),
+      'path' => drupal_get_path('module', 'commerce_pos_gift_card') . '/theme',
+      'template' => 'commerce-pos-gift-card-status',
+    ),
+  );
+}
+
+/**
+ * Implements hook_views_api().
+ */
+function commerce_pos_gift_card_views_api() {
+  return array(
+    'api' => 3,
+    'path' => drupal_get_path('module', 'commerce_pos_gift_card') . '/includes/views',
+  );
+}
+
+/**
+ * Implements hook_permission().
+ */
+function commerce_pos_gift_card_permission() {
+  $permissions = array(
+    'administer gift card types' => array(
+      'title' => t('Administer gift card types'),
+      'description' => t('Allows users to configure gift card types and their fields.'),
+      'restrict access' => TRUE,
+    ),
+    'process commerce pos gift cards' => array(
+      'title' => t('Process Commerce POS Gift Cards'),
+      'description' => t('Tasks related to processing of gift card transactions and selling gift cards.'),
+    ),
+  );
+
+  $permissions += commerce_entity_access_permissions('commerce_pos_gift_card');
+
+  return $permissions;
+}
+
+/**
+ * Implements hook_enable().
+ */
+function commerce_pos_gift_card_enable() {
+  commerce_pos_gift_card_configure_gift_card_types();
+}
+
+/**
+ * Implements hook_modules_enabled().
+ */
+function commerce_pos_gift_card_modules_enabled($modules) {
+  commerce_pos_gift_card_configure_module_gift_card_types($modules);
+}
+
+/**
+ * Configure the gift card types defined by enabled modules.
+ */
+function commerce_pos_gift_card_configure_gift_card_types() {
+  foreach (commerce_pos_gift_card_types() as $type => $gift_card_type) {
+    commerce_pos_gift_card_configure_gift_card_type($gift_card_type);
+  }
+}
+
+/**
+ * Configures the fields on gift cards types provided by other modules.
+ *
+ * @param $modules
+ *   An array of module names whose gift card type fields should be configured;
+ *   if left NULL, will default to all modules that implement
+ *   hook_commerce_pos_gift_card_type_info().
+ */
+function commerce_pos_gift_card_configure_module_gift_card_types($modules = NULL) {
+  // If no modules array is passed, recheck the fields for all gift card types
+  // defined by enabled modules.
+  if (empty($modules)) {
+    $modules = module_implements('commerce_pos_gift_card_type_info');
+  }
+
+  drupal_static_reset('commerce_pos_gift_card_types');
+  $all_gift_card_types = commerce_pos_gift_card_types();
+  // Loop through all the enabled modules.
+  foreach ($modules as $module) {
+    // If the module implements hook_commerce_pos_gift_card_type_info()...
+    if (module_hook($module, 'commerce_pos_gift_card_type_info')) {
+      $gift_card_types = array_keys(module_invoke($module, 'commerce_pos_gift_card_type_info'));
+      // Loop through and configure the gift card types defined by the module.
+      foreach ($gift_card_types as $type) {
+        commerce_pos_gift_card_configure_gift_card_type($all_gift_card_types[$type]);
+      }
+    }
+  }
+}
+
+/**
+ * Returns an array of gift card type arrays keyed by type.
+ */
+function commerce_pos_gift_card_types() {
+  // First check the static cache for a gift card types array.
+  $gift_card_types = &drupal_static(__FUNCTION__);
+  // If it did not exist, fetch the types now.
+  if (!isset($gift_card_types)) {
+    $gift_card_types = array();
+
+    // Find gift card types defined by hook_commerce_pos_gift_card_type_info().
+    foreach (module_implements('commerce_pos_gift_card_type_info') as $module) {
+      foreach (module_invoke($module, 'commerce_pos_gift_card_type_info') as $type => $gift_card_type) {
+
+        $defaults = array(
+          'type' => $type,
+          'base' => $type,
+          'callbacks' => array(),
+          'module' => $module,
+          'revision' => 1,
+        );
+
+        $gift_card_type += $defaults;
+
+        // Merge in default callbacks.
+        foreach (array('configuration', 'validate_payment', 'process_payment', 'info', 'add_balance', 'format_transaction_amount', 'void') as $callback) {
+          if (!isset($gift_card_type['callbacks'][$callback])) {
+            $gift_card_type['callbacks'][$callback] = $gift_card_type['base'] . '_' . $callback;
+          }
+        }
+
+        $gift_card_types[$type] = $gift_card_type;
+      }
+    }
+
+    // Last allow the info to be altered by other modules.
+    drupal_alter('commerce_pos_gift_card_type_info', $gift_card_types);
+  }
+
+  return $gift_card_types;
+}
+
+/**
+ * Resets the cached list of gift card types.
+ */
+function commerce_pos_gift_card_types_reset() {
+  $gift_card_types = &drupal_static('commerce_pos_gift_card_types');
+  $gift_card_types = NULL;
+  entity_info_cache_clear();
+}
+
+/**
+ * Loads a gift card type.
+ *
+ * @param $type
+ *   The machine-readable name of the gift card type; accepts normal machine names
+ *     and URL prepared machine names with underscores replaced by hyphens.
+ */
+function commerce_pos_gift_card_type_load($type) {
+  $type = strtr($type, array('-' => '_'));
+  $gift_card_types = commerce_pos_gift_card_types();
+  return !empty($gift_card_types[$type]) ? $gift_card_types[$type] : FALSE;
+}
+
+/**
+ * Returns the human readable name of any or all gift card types.
+ *
+ * @param $type
+ *   Optional parameter specifying the type whose name to return.
+ *
+ * @return
+ *   Either an array of all gift card type names keyed by the machine name or a
+ *     string containing the human readable name for the specified type. If a
+ *     type is specified that does not exist, this function returns FALSE.
+ */
+function commerce_pos_gift_card_type_get_name($type = NULL) {
+  $gift_card_types = commerce_pos_gift_card_types();
+
+  // Return a type name if specified and it exists.
+  if (!empty($type)) {
+    if (isset($gift_card_types[$type])) {
+      return $gift_card_types[$type]['name'];
+    }
+    else {
+      // Return FALSE if it does not exist.
+      return FALSE;
+    }
+  }
+
+  // Otherwise turn the array values into the type name only.
+  foreach ($gift_card_types as $key => $value) {
+    $gift_card_types[$key] = $value['name'];
+  }
+
+  return $gift_card_types;
+}
+
+/**
+ * Wraps commerce_pos_gift_card_type_get_name() for the Entity module.
+ */
+function commerce_pos_gift_card_type_options_list() {
+  return commerce_pos_gift_card_type_get_name();
+}
+
+/**
+ * Returns a path argument from a gift card type.
+ */
+function commerce_pos_gift_card_type_to_arg($type) {
+  return strtr($type, '_', '-');
+}
+
+/**
+ * Returns an initialized gift card object.
+ *
+ * @param $type
+ *   The machine-readable type of the gift card.
+ *
+ * @return
+ *   A gift card object with all default fields initialized.
+ */
+function commerce_pos_gift_card_new($type = '') {
+  return entity_get_controller('commerce_pos_gift_card')->create(array('type' => $type));
+}
+
+/**
+ * Saves a gift card.
+ *
+ * @param $gift_card
+ *   The full gift card object to save.
+ *
+ * @return
+ *   SAVED_NEW or SAVED_UPDATED depending on the operation performed.
+ */
+function commerce_pos_gift_card_save($gift_card) {
+  return entity_get_controller('commerce_pos_gift_card')->save($gift_card);
+}
+
+/**
+ * Loads a gift card by ID.
+ */
+function commerce_pos_gift_card_load($gift_card_id) {
+  if (empty($gift_card_id)) {
+    return FALSE;
+  }
+
+  $gift_cards = commerce_pos_gift_card_load_multiple(array($gift_card_id), array());
+  return $gift_cards ? reset($gift_cards) : FALSE;
+}
+
+/**
+ * Loads a gift card by card number.
+ */
+function commerce_pos_gift_card_load_by_card_number($card_number) {
+  $gift_cards = commerce_pos_gift_card_load_multiple(array(), array('card_number' => $card_number));
+  return $gift_cards ? reset($gift_cards) : FALSE;
+}
+
+/**
+ * Loads multiple gift cards by ID or based on a set of matching conditions.
+ *
+ * @see entity_load()
+ *
+ * @param $gift_card_ids
+ *   An array of gift card IDs.
+ * @param $conditions
+ *   An array of conditions on the {commerce_pos_gift_card} table in the form
+ *     'field' => $value.
+ * @param $reset
+ *   Whether to reset the internal gift card loading cache.
+ *
+ * @return
+ *   An array of gift card objects indexed by gift_card_id.
+ */
+function commerce_pos_gift_card_load_multiple($gift_card_ids = array(), $conditions = array(), $reset = FALSE) {
+  if (empty($gift_card_ids) && empty($conditions)) {
+    return array();
+  }
+
+  return entity_load('commerce_pos_gift_card', $gift_card_ids, $conditions, $reset);
+}
+
+/**
+ * Determines whether or not the given gift card can be deleted.
+ *
+ * @param $gift_card
+ *   The gift card to be checked for deletion.
+ *
+ * @return
+ *   Boolean indicating whether or not the gift card can be deleted.
+ */
+function commerce_pos_gift_card_can_delete($gift_card) {
+  // Return FALSE if the given gift card does not have an ID; it need not be
+  // deleted, which is functionally equivalent to cannot be deleted as far as
+  // code depending on this function is concerned.
+  if (empty($gift_card->gift_card_id)) {
+    return FALSE;
+  }
+
+  // If any module implementing hook_commerce_pos_gift_card_can_delete() returns FALSE
+  // the gift card cannot be deleted. Return TRUE if none return FALSE.
+  return !in_array(FALSE, module_invoke_all('commerce_pos_gift_card_can_delete', $gift_card));
+}
+
+/**
+ * Deletes a gift card by ID.
+ *
+ * @param $gift_card_id
+ *   The ID of the gift card to delete.
+ *
+ * @return
+ *   TRUE on success, FALSE otherwise.
+ */
+function commerce_pos_gift_card_delete($gift_card_id) {
+  return commerce_pos_gift_card_delete_multiple(array($gift_card_id));
+}
+
+/**
+ * Deletes multiple gift cards by ID.
+ *
+ * @param $gift_card_ids
+ *   An array of gift card IDs to delete.
+ *
+ * @return
+ *   TRUE on success, FALSE otherwise.
+ */
+function commerce_pos_gift_card_delete_multiple($gift_card_ids) {
+  return entity_get_controller('commerce_pos_gift_card')->delete($gift_card_ids);
+}
+
+/**
+ * Checks gift card access for various operations.
+ *
+ * @param $op
+ *   The operation being performed. One of 'view', 'update', 'create' or
+ *   'delete'.
+ * @param $gift_card
+ *   Optionally a gift card to check access for or for the create operation the
+ *   gift card type. If nothing is given access permissions for all gift cards are returned.
+ * @param $account
+ *   The user to check for. Leave it to NULL to check for the current user.
+ */
+function commerce_pos_gift_card_access($op, $gift_card = NULL, $account = NULL) {
+  return commerce_entity_access($op, $gift_card, $account, 'commerce_pos_gift_card');
+}
+
+/**
+ * Implementation of hook_query_commerce_pos_gift_card_access_alter().
+ */
+function commerce_pos_gift_card_query_commerce_pos_gift_card_access_alter(QueryAlterableInterface $query) {
+  return commerce_entity_access_query_alter($query, 'commerce_pos_gift_card');
+}
+
+/**
+ * Performs token replacement on a card number for valid tokens only.
+ *
+ * TODO: This function currently limits acceptable Tokens to Gift card ID and type
+ * with no ability to use Tokens for the Fields attached to the gift card. That
+ * might be fine for a core Token replacement, but we should at least open the
+ * $valid_tokens array up to other modules to enable various Tokens for use.
+ *
+ * @param $card_number
+ *   The raw card number string including any tokens as entered.
+ * @param $gift_card
+ *   A gift card object used to perform token replacement on the card number.
+ *
+ * @return
+ *   The gift card with tokens replaced or else FALSE if it included invalid tokens.
+ */
+function commerce_pos_gift_card_replace_card_number_tokens($card_number, $gift_card) {
+  // Build an array of valid card number tokens.
+  $valid_tokens = array('gift-card-id', 'type');
+
+  // Ensure that only valid tokens were used.
+  $invalid_tokens = FALSE;
+
+  foreach (token_scan($card_number) as $type => $token) {
+    if ($type !== 'gift-card') {
+      $invalid_tokens = TRUE;
+    }
+    else {
+      foreach (array_keys($token) as $value) {
+        if (!in_array($value, $valid_tokens)) {
+          $invalid_tokens = TRUE;
+        }
+      }
+    }
+  }
+
+  // Register the error if an invalid token was detected.
+  if ($invalid_tokens) {
+    return FALSE;
+  }
+
+  return $card_number;
+}
+
+/**
+ * Checks to see if a given card number already exists for another gift card.
+ *
+ * @param $card_number
+ *   The string to match against existing card numbers.
+ * @param $gift_card_id
+ *   The ID of the gift card the card number is for; an empty value represents the card number is
+ *     meant for a new gift card.
+ *
+ * @return
+ *   TRUE or FALSE indicating whether or not the card number exists for another card.
+ */
+function commerce_pos_gift_card_validate_card_number_unique($card_number, $gift_card_id) {
+  // Look for an ID of a gift card matching the supplied card number.
+  if ($match_id = db_query('SELECT gift_card_id FROM {commerce_pos_gift_card} WHERE card_number = :card_number', array(':card_number' => $card_number))->fetchField()) {
+    // If this card number is supposed to be for a new card or a gift card other than
+    // the one that matched...
+    if (empty($gift_card_id) || $match_id != $gift_card_id) {
+      return FALSE;
+    }
+  }
+
+  return TRUE;
+}
+
+/**
+ * Checks to ensure a given gift card does not contain invalid characters.
+ *
+ * @param $card_number
+ *   The string to validate as a card number.
+ *
+ * @return
+ *   TRUE or FALSE indicating whether or not the card number is valid.
+ */
+function commerce_pos_gift_card_validate_card_number($card_number) {
+  // Do not allow commas in a card number.
+  if (strpos($card_number, ',')) {
+    return FALSE;
+  }
+
+  return TRUE;
+}
+
+/**
+ * Callback for getting gift card properties.
+ * @see commerce_pos_gift_card_entity_property_info()
+ */
+function commerce_pos_gift_card_get_properties($gift_card, array $options, $name) {
+  switch ($name) {
+    case 'creator':
+      return $gift_card->uid;
+    case 'edit_url':
+      return url('admin/commerce/gift_cards/' . $gift_card->gift_card_ids . '/edit', $options);
+  }
+}
+
+/**
+ * Callback for setting gift card properties.
+ * @see commerce_pos_gift_card_entity_property_info()
+ */
+function commerce_pos_gift_card_set_properties($gift_card, $name, $value) {
+  if ($name == 'creator') {
+    $gift_card->uid = $value;
+  }
+}
+
+/**
+ * Access callback: determines access to a gift card's translation tab.
+ */
+function commerce_pos_gift_card_entity_translation_tab_access($gift_card) {
+  if (!empty($gift_card->language) && $gift_card->language != LANGUAGE_NONE) {
+    if (commerce_pos_gift_card_entity_translation_supported_type($gift_card->type)) {
+      return entity_translation_tab_access('commerce_pos_gift_card');
+    }
+  }
+
+  return FALSE;
+}
+
+/**
+ * Returns whether the given gift card type has support for translations.
+ *
+ * @param $type
+ *   The machine-name of the gift card type to check for translation support.
+ *
+ * @return
+ *   TRUE or FALSE indicating translation support for the requested type.
+ */
+function commerce_pos_gift_card_entity_translation_supported_type($type) {
+  return variable_get('language_gift_card_type_' . $type, 0) == ENTITY_TRANSLATION_ENABLED;
+}
+
+/**
+ * Configures a gift card type by adding the history field and calling its configuration callback.
+ *
+ * @param $gift_card_type
+ *   The fully loaded gift card type array to configure.
+ */
+function commerce_pos_gift_card_configure_gift_card_type($gift_card_type) {
+  commerce_pos_gift_card_history_create_instance('commerce_pos_gift_card_history', 'commerce_pos_gift_card', $gift_card_type['type'], t('History'));
+  // If this gift card type specifies a configuration callback...
+  if ($callback = commerce_pos_gift_card_type_callback($gift_card_type, 'configuration')) {
+    // Invoke it now.
+    $callback($gift_card_type);
+  }
+}
+
+/**
+ * Returns the specified callback for the given gift card type if one exists.
+ *
+ * @param $gift_card_type
+ *   The gift card type array.
+ * @param $callback
+ *   The callback function to return, one of:
+ *   - configuration
+ *   - validate_payment
+ *   - process_payment
+ *   - balance
+ *   - add_balance
+ *   - void
+ *   - format_transaction_amount
+ *   - is_empty
+ *
+ * @return
+ *   A string containing the name of the callback function or FALSE if it could
+ *     not be found.
+ */
+function commerce_pos_gift_card_type_callback($gift_card_type, $callback) {
+  // If the specified callback function exists, return it.
+  if (!empty($gift_card_type['callbacks'][$callback]) && function_exists($gift_card_type['callbacks'][$callback])) {
+    return $gift_card_type['callbacks'][$callback];
+  }
+
+  // Otherwise return FALSE.
+  return FALSE;
+}
+
+/**
+ * Sanitizes the gift card number before output.
+ */
+function template_preprocess_commerce_pos_gift_card_number(&$variables) {
+  $variables['card_number'] = check_plain($variables['card_number']);
+}
+
+/**
+ * Void a gift card payment.
+ */
+function commerce_pos_gift_card_void_transaction($transaction_id) {
+  $gift_card = commerce_pos_gift_card_load_by_transaction_id($transaction_id);
+  if (empty($gift_card)) {
+    return array(
+      'error' => 'not_found',
+      'message' => t('The transaction could not be found.'),
+    );
+  }
+  $gift_card_type = commerce_pos_gift_card_type_load($gift_card->type);
+  $callback = commerce_pos_gift_card_type_callback($gift_card_type, 'void');
+
+  $wrapper = entity_metadata_wrapper('commerce_pos_gift_card', $gift_card);
+  $history = $wrapper->commerce_pos_gift_card_history->value();
+  foreach ($history as $delta => $transaction) {
+    if ($transaction['transaction_id'] == $transaction_id) {
+      $index = $delta;
+      continue;
+    }
+  }
+
+  //This should never happen.
+  if (!isset($index)) {
+    return array(
+      'error' => 'unknown',
+      'message' => t('An unknown error has occurred.'),
+    );
+  }
+
+  $status = $callback($history[$index], $gift_card);
+  $history[$index]['status'] = $status;
+  $history[$index]['changed'] = REQUEST_TIME;
+
+
+  $wrapper->commerce_pos_gift_card_history = $history;
+  $wrapper->save();
+  $result = array(
+    'transaction_id' => $transaction_id,
+    'status' => $status,
+  ) + commerce_pos_gift_card_info($wrapper->value());
+
+  return $result;
+}
+
+/**
+ * Load the gift card corresponding to a particular transaction.
+ */
+function commerce_pos_gift_card_load_by_transaction_id($transaction_id) {
+  $query = new EntityFieldQuery();
+  $result = $query->entityCondition('entity_type', 'commerce_pos_gift_card')
+    ->fieldCondition('commerce_pos_gift_card_history', 'transaction_id', $transaction_id, '=')
+    ->execute();
+  if (!empty($result['commerce_pos_gift_card'])) {
+    $data = reset($result['commerce_pos_gift_card']);
+    $gift_card_id = $data->gift_card_id;
+    return commerce_pos_gift_card_load($gift_card_id);
+  }
+  return FALSE;
+}
+
+/**
+ * Get the balance of a gift card.
+ *   @param $gift_card
+ *    A fully loaded gift card entity.
+ */
+function commerce_pos_gift_card_info($gift_card) {
+  $gift_card_type = commerce_pos_gift_card_type_load($gift_card->type);
+  $callback = commerce_pos_gift_card_type_callback($gift_card_type, 'info');
+  if (!empty($callback)) {
+    $info = $callback($gift_card);
+    $info['type'] = $gift_card->type;
+    return $info;
+  }
+  else {
+    return array(
+      'error' => 'unknown',
+      'message' => t('Unable to retrieve card info.'),
+    );
+  }
+}
+
+/**
+ * Format the amount of a transaction.
+ *  @param $transaction
+ *    The transaction item.
+ *  @param $gift_card
+ *    A fully loaded gift card entity.
+ */
+function commerce_pos_gift_card_format_transaction_amount($gift_card) {
+  $gift_card_type = commerce_pos_gift_card_type_load($gift_card->type);
+  $callback = commerce_pos_gift_card_type_callback($gift_card_type, 'format_transaction_amount');
+  return $callback($gift_card);
+}
+
+/**
+ * Add balance to a gift card.
+ *  @param $gift_card
+ *    A fully loaded gift card entity.
+ *  @param $data
+ *    An array of data determining the value to be added to the gift card.
+ */
+function commerce_pos_gift_card_add_balance($gift_card, $data) {
+  $gift_card_type = commerce_pos_gift_card_type_load($gift_card->type);
+  $callback = commerce_pos_gift_card_type_callback($gift_card_type, 'add_balance');
+  $result = $callback($gift_card, $data);
+
+  if (!empty($result)) {
+    global $user;
+    $wrapper = entity_metadata_wrapper('commerce_pos_gift_card', $gift_card);
+    $history = $wrapper->commerce_pos_gift_card_history->value();
+    $transaction_id = commerce_pos_gift_card_generate_transaction_id();
+
+    $transaction = array(
+      'data' => $data,
+      'uid' => $user->uid,
+      'status' => COMMERCE_POS_GIFT_CARD_STATUS_SUCCESS,
+      'type' => 'add',
+      'transaction_id' => $transaction_id,
+      'created' => REQUEST_TIME,
+      'changed' => REQUEST_TIME,      
+    );
+    $history[] = $transaction;
+
+    $result += array(
+      'transaction_id' => $transaction_id,
+      'status' => $transaction['status'],
+    );
+
+    $wrapper->commerce_pos_gift_card_history = $history;
+    $wrapper->save();
+  }
+
+  return $result;
+}
+
+/**
+ * Process a payment on a gift card.
+ *  @param $gift_card
+ *    A fully loaded gift card entity.
+ *  @param $data
+ *    An array of data determining the amount of the payment.
+ */
+function commerce_pos_gift_card_process_payment($gift_card, $data) {
+  $gift_card_type = commerce_pos_gift_card_type_load($gift_card->type);
+
+  //Validate data first, if a validation callback exists.
+  $validate = commerce_pos_gift_card_type_callback($gift_card_type, 'validate_payment');
+  if (!empty($validate)) {
+    $valid = $validate($gift_card, $data);
+    if (!empty($valid['error'])) {
+      return $valid;
+    }
+  }
+
+  $callback = commerce_pos_gift_card_type_callback($gift_card_type, 'process_payment');
+  $result = $callback($gift_card, $data);
+
+  if (!empty($result)) {
+    global $user;
+    $wrapper = entity_metadata_wrapper('commerce_pos_gift_card', $gift_card);
+    $history = $wrapper->commerce_pos_gift_card_history->value();
+    $transaction_id = commerce_pos_gift_card_generate_transaction_id();
+
+    $transaction = array(
+      'data' => $data,
+      'uid' => $user->uid,
+      'status' => COMMERCE_POS_GIFT_CARD_STATUS_SUCCESS,
+      'type' => 'payment',
+      'transaction_id' => $transaction_id,
+      'created' => REQUEST_TIME,
+      'changed' => REQUEST_TIME,
+    );
+    $history[] = $transaction;
+
+    $result += array(
+      'transaction_id' => $transaction_id,
+      'status' => $transaction['status'],
+    );
+
+    $wrapper->commerce_pos_gift_card_history = $history;
+    $wrapper->save();
+  }
+
+  return $result;
+}
+
+/**
+ * Return
+ */
+function commerce_pos_gift_card_transaction_types() {
+  return array(
+    'add' => t('Add balance'),
+    'payment' => t('Payment'),
+  );
+}
+
+/**
+ * Implements hook_services_resources().
+ */
+function commerce_pos_gift_card_services_resources() {
+  $gift_card_resource = array(
+    'commerce_pos_gift_card' => array(
+      'targeted_actions' => array(
+        'info' => array(
+          //'file' => array('type' => 'inc', 'module' => 'services', 'name' => 'resources/node_resource'),
+          'callback' => '_commerce_pos_gift_card_info',
+          'help' => t('Get information about a gift card.'),
+          'args' => array(
+            array(
+              'name' => 'card_number',
+              'optional' => FALSE,
+              'source' => array('path' => 0),
+              'type' => 'string',
+              'description' => 'The gift card id of the gift card to check.',
+            ),
+          ),
+          'access callback' => '_commerce_pos_gift_card_access',
+          'access arguments' => array('view'),
+          'access arguments append' => TRUE,
+        ),
+        'addBalance' => array(
+          //'file' => array('type' => 'inc', 'module' => 'services', 'name' => 'resources/node_resource'),
+          'callback' => '_commerce_pos_gift_card_add_balance',
+          'help' => t('Add value to a gift card.'),
+          'args' => array(
+            array(
+              'name' => 'card_number',
+              'optional' => FALSE,
+              'source' => array('path' => 0),
+              'type' => 'string',
+              'description' => 'The gift card id of the gift card to check.',
+            ),
+            array(
+              'name' => 'data',
+              'optional' => FALSE,
+              'source' => 'data',
+              'description' => 'The data specifying the amount to add.',
+              'type' => 'array',
+            ),
+          ),
+          'access callback' => '_commerce_pos_gift_card_access',
+          'access arguments' => array('edit'),
+          'access arguments append' => TRUE,
+        ),
+        'processPayment' => array(
+          //'file' => array('type' => 'inc', 'module' => 'services', 'name' => 'resources/node_resource'),
+          'help' => t('Processes a gift card payment.'),
+          'callback' => '_commerce_pos_gift_card_process_payment',
+          'args' => array(
+            array(
+              'name' => 'card_number',
+              'optional' => FALSE,
+              'source' => array('path' => 0),
+              'type' => 'string',
+              'description' => 'The gift card id of the gift card to check.',
+            ),
+            array(
+              'name' => 'data',
+              'optional' => FALSE,
+              'source' => 'data',
+              'description' => 'The data specifying the payment information.',
+              'type' => 'array',
+            ),
+          ),
+          'access callback' => '_commerce_pos_gift_card_access',
+          'access arguments' => array('edit'),
+          'access arguments append' => TRUE,
+        ),
+        'voidTransaction' => array(
+          //'file' => array('type' => 'inc', 'module' => 'services', 'name' => 'resources/node_resource'),
+          'help' => t('Voids a gift card transaction.'),
+          'callback' => '_commerce_pos_gift_card_void_transaction',
+          'args' => array(
+            array(
+              'name' => 'card_number',
+              'optional' => FALSE,
+              'source' => array('path' => 0),
+              'type' => 'string',
+              'description' => 'The transaction id of the transaction to void.',
+            ),
+          ),
+          'access callback' => '_commerce_pos_gift_card_void_transaction',
+          'access arguments' => array('edit'),
+          'access arguments append' => TRUE,
+        ),
+      ),
+    ),
+  );
+
+  return $gift_card_resource;
+}
+
+/**
+ * Access callback for gift card processing targeted actions.
+ *  TODO: permissions per action
+ */
+function _commerce_pos_gift_card_access() {
+  return user_access('process commerce pos gift cards');
+}
+
+/**
+ * Callback for info REST targeted action.
+ * @param $card_number
+ *   The card_number of a gift card.
+ */
+function _commerce_pos_gift_card_info($card_number) {
+  $gift_card = commerce_pos_gift_card_load_by_card_number($card_number);
+  if (empty($gift_card)) {
+    return array(
+      'error' => 'not_found',
+      'message' => t('The gift card could not be found.'),
+    );
+  }
+  return commerce_pos_gift_card_info($gift_card);
+}
+
+/**
+ * Callback for void REST method.
+ * @param $transaction_id
+ *   The transaction_id of the transaction to void.
+ */
+function _commerce_pos_gift_card_void_transaction($transaction_id) {
+  return commerce_pos_gift_card_void_transaction($transaction_id);
+}
+
+/**
+ * Callback for info REST method.
+ * @param $card_number
+ *  The card_number of a gift card.
+ * @param $data
+ *  An array indicating the amount to be added.
+ */
+function _commerce_pos_gift_card_add_balance($card_number, $data) {
+  return commerce_pos_gift_card_add_balance(commerce_pos_gift_card_load_by_card_number($card_number), $data);
+}
+
+/**
+ * Callback for processPayment REST method.
+ * @param $card_number
+ *  The card_number of a gift card.
+ * @param $data
+ *  An array holding all necessary transaction information.
+ */
+function _commerce_pos_gift_card_process_payment($card_number, $data) {
+  return commerce_pos_gift_card_process_payment(commerce_pos_gift_card_load_by_card_number($card_number), $data);
+}
+
+
+/**
+ * Implements hook_field_info().
+ */
+function commerce_pos_gift_card_field_info() {
+  return array(
+    'commerce_pos_gift_card_history' => array(
+      'label' => t('History'),
+      'description' => t('This field stores historical information about changes to gift cards.'),
+      'settings' => array(),
+      'instance_settings' => array(),
+      'default_widget' => 'commerce_pos_gift_card_history_value',
+      'default_formatter' => 'commerce_pos_gift_card_history_table',
+      'property_type' => 'commerce_pos_gift_card_history',
+      'property_callbacks' => array('commerce_pos_gift_card_history_property_info_callback'),
+      //'default_token_formatter' => 'commerce_pos_gift_card_history', //TODO: figure out what default_token_formatter is!
+    ),
+  );
+}
+
+/**
+ * Callback to alter the property info of gift card history fields.
+ *
+ * @see commerce_pos_gift_card_history_field_info().
+ */
+function commerce_pos_gift_card_history_property_info_callback(&$info, $entity_type, $field, $instance, $field_type) {
+  $name = $field['field_name'];
+  $property = &$info[$entity_type]['bundles'][$instance['bundle']]['properties'][$name];
+
+  $property['type'] = ($field['cardinality'] != 1) ? 'list<commerce_pos_gift_card_history>' : 'commerce_pos_gift_card_history';
+  $property['getter callback'] = 'entity_metadata_field_verbatim_get';
+  $property['setter callback'] = 'entity_metadata_field_verbatim_set';
+  //$property['auto creation'] = 'commerce_price_field_data_auto_creation';
+  $property['property info'] = commerce_pos_gift_card_history_field_data_property_info();
+
+  unset($property['query callback']);
+}
+
+/**
+ * Defines info for the properties of the Price field data structure.
+ */
+function commerce_pos_gift_card_history_field_data_property_info($name = NULL) {
+  return array(
+    'transaction_id' => array(
+      'label' => t('Transaction ID'),
+      'description' => !empty($name) ? t('Transaction ID of field %name', array('%name' => $name)) : '',
+      'type' => 'text',
+      'getter callback' => 'entity_property_verbatim_get',
+      'setter callback' => 'entity_property_verbatim_set',
+    ),
+    'status' => array(
+      'label' => t('Status'),
+      'description' => !empty($name) ? t('Status of field %name', array('%name' => $name)) : '',
+      'type' => 'text',
+      'getter callback' => 'entity_property_verbatim_get',
+      'setter callback' => 'entity_property_verbatim_set',
+    ),
+    'type' => array(
+      'label' => t('Type'),
+      'description' => !empty($name) ? t('Type of field %name', array('%name' => $name)) : '',
+      'type' => 'text',
+      'getter callback' => 'entity_property_verbatim_get',
+      'setter callback' => 'entity_property_verbatim_set',
+    ),
+    'uid' => array(
+      'label' => t('User ID'),
+      'description' => !empty($name) ? t('User ID of field %name', array('%name' => $name)) : '',
+      'type' => 'int',
+      'getter callback' => 'entity_property_verbatim_get',
+      'setter callback' => 'entity_property_verbatim_set',
+    ),
+    'created' => array(
+      'label' => t('User ID'),
+      'description' => !empty($name) ? t('Created time of item in field %name', array('%name' => $name)) : '',
+      'type' => 'int',
+      'getter callback' => 'entity_property_verbatim_get',
+      'setter callback' => 'entity_property_verbatim_set',
+    ),
+    'changed' => array(
+      'label' => t('Changed'),
+      'description' => !empty($name) ? t('Changed time of item in field %name', array('%name' => $name)) : '',
+      'type' => 'int',
+      'getter callback' => 'entity_property_verbatim_get',
+      'setter callback' => 'entity_property_verbatim_set',
+    ),
+    'data' => array(
+      'label' => t('Data'),
+      'description' => !empty($name) ? t('Data array of field %name', array('%name' => $name)) : '',
+      'type' => 'struct',
+      'getter callback' => 'entity_property_verbatim_get',
+      'setter callback' => 'entity_property_verbatim_set',
+    ),
+  );
+}
+
+
+/**
+ * Creates a required, locked instance of a gift card history field on the specified bundle.
+ *
+ * @param $field_name
+ *   The name of the field; if it already exists, a new instance of the existing
+ *     field will be created.
+ * @param $entity_type
+ *   The type of entity the field instance will be attached to.
+ * @param $bundle
+ *   The bundle name of the entity the field instance will be attached to.
+ * @param $label
+ *   The label of the field instance.
+ * @param $weight
+ *   The default weight of the field instance widget and display.
+ * @param $display
+ *   An array of default display data used for the entity's current view modes.
+ */
+function commerce_pos_gift_card_history_create_instance($field_name, $entity_type, $bundle, $label, $weight = 0, $display = array()) {
+  // If a field type we know should exist isn't found, clear the Field cache.
+  if (!field_info_field_types('commerce_price')) {
+    field_cache_clear();
+  }
+
+  // Look for or add the specified price field to the requested entity bundle.
+  $field = field_info_field($field_name);
+  $instance = field_info_instance($entity_type, $field_name, $bundle);
+
+  if (empty($field)) {
+    $field = array(
+      'field_name' => $field_name,
+      'type' => 'commerce_pos_gift_card_history',
+      'cardinality' => FIELD_CARDINALITY_UNLIMITED,
+      'entity_types' => array($entity_type),
+      'translatable' => FALSE,
+      'locked' => TRUE,
+    );
+    $field = field_create_field($field);
+  }
+
+  if (empty($instance)) {
+    $instance = array(
+      'field_name' => $field_name,
+      'entity_type' => $entity_type,
+      'bundle' => $bundle,
+
+      'label' => $label,
+      'required' => TRUE,
+      'settings' => array(),
+      'widget' => array(
+        'type' => 'commerce_pos_gift_card_history_value',
+        'weight' => $weight,
+        'settings' => array(),
+      ),
+    );
+
+    $entity_info = entity_get_info($entity_type);
+    foreach ($entity_info['view modes'] as $view_mode => $data) {
+      $instance['display'][$view_mode] = $display + array(
+        'label' => 'hidden',
+        'type' => 'commerce_pos_gift_card_history_default',
+        'settings' => array(),
+        'weight' => 10,
+      );
+    }
+
+    field_create_instance($instance);
+  }
+}
+
+/**
+ * Implements hook_field_widget_info().
+ */
+function commerce_pos_gift_card_field_widget_info() {
+  return array(
+    'commerce_pos_gift_card_history_value' => array(
+      'label' => t('History'),
+      'field types' => array('commerce_pos_gift_card_history'),
+      'settings' => array(),
+      'behaviors' => array(
+        'multiple values' => FIELD_BEHAVIOR_CUSTOM,
+      )
+    ),
+  );
+}
+
+/**
+ * Implements hook_field_widget_form().
+ */
+function commerce_pos_gift_card_field_widget_form(&$form, &$form_state, $field, $instance, $langcode, $items, $delta, $element) {
+  switch ($instance['widget']['type']) {
+    case 'commerce_pos_gift_card_history_value':
+      $element += array(
+        '#type' => 'value',
+        '#value' => $items,
+      );
+      return $element;
+  }
+}
+
+/**
+ * Implements hook_field_formatter_info().
+ */
+function commerce_pos_gift_card_field_formatter_info() {
+  return array(
+    'commerce_pos_gift_card_history_table' => array(
+      'label' => t('History'),
+      'field types' => array('commerce_pos_gift_card_history'),
+      'settings' => array(),
+    ),
+  );
+}
+
+/**
+ * Implements hook_field_formatter_view().
+ */
+function commerce_pos_gift_card_field_formatter_view($entity_type, $entity, $field, $instance, $langcode, $items, $display) {
+  switch ($display['type']) {
+    case 'commerce_pos_gift_card_history_default':
+      $statuses = commerce_pos_gift_card_transaction_statuses();
+      $transaction_types = commerce_pos_gift_card_transaction_types();
+      $element = array();
+      $rows = array();
+      foreach ($items as $delta => $transaction) {
+        $rows[$delta] = array(
+          $transaction['transaction_id'],
+          $statuses[$transaction['status']]['title'],
+          commerce_pos_gift_card_format_transaction_amount($transaction, $entity),
+          $transaction_types[$transaction['type']],
+        );
+      }
+
+      $header = array(
+        t('Transaction ID'),
+        t('Status'),
+        t('Amount'),
+        t('Comment'),
+      );
+
+      $element[0] = array(
+        '#theme' => 'table',
+        '#header' => $header,
+        '#rows' => $rows,
+      );
+
+      return $element;
+  }
+}
+
+/**
+ * Generate a customer-facing identifier for a gift card.
+ */
+function commerce_pos_gift_card_default_card_number() {
+  //TODO: allow modules to hook in.
+  return uniqid();
+}
+
+/**
+ * Generate a transaction identifier for a gift card transaction.
+ */
+function commerce_pos_gift_card_generate_transaction_id() {
+  //TODO: allow modules to hook in.
+  return uniqid();
+}
+
+/**
+ * Returns an array of transaction payment status objects for the defined
+ *   payment statuses.
+ *
+ * This function invokes hook_commerce_pos_gift_card_transaction_status_info() so
+ * other modules can define statuses if necessary. However, it doesn't
+ * allow for altering so that existing payment methods cannot be unset. It still
+ * does perform an array merge in such a way that the properties for the two
+ * core statuses defined by this module may be overridden if the same keys are
+ * used in another module's implementation of the info hook.
+ */
+function commerce_pos_gift_card_transaction_statuses() {
+  $transaction_statuses = &drupal_static(__FUNCTION__);
+
+  // If the statuses haven't been defined yet, do so now.
+  if (!isset($transaction_statuses)) {
+    $transaction_statuses = module_invoke_all('commerce_pos_gift_card_transaction_status_info');
+
+    $transaction_statuses += array(
+      COMMERCE_POS_GIFT_CARD_STATUS_SUCCESS => array(
+        'status' => COMMERCE_POS_GIFT_CARD_STATUS_SUCCESS,
+        'title' => t('Success'),
+      ),
+      COMMERCE_POS_GIFT_CARD_STATUS_FAILURE => array(
+        'status' => COMMERCE_POS_GIFT_CARD_STATUS_FAILURE,
+        'title' => t('Failure'),
+      ),
+    );
+  }
+
+  return $transaction_statuses;
+}
+
+/**
+ * Implements hook_ctools_plugin_api().
+ */
+function commerce_pos_gift_card_ctools_plugin_api($owner, $api) {
+  if ($owner == 'services' && $api == 'services') {
+    return array(
+      'version' => 3,
+      'file' => 'commerce_pos_gift_card.services.inc', // Optional parameter to indicate the file name to load.
+      'path' => drupal_get_path('module', 'commerce_pos_gift_card') . '/includes', // If specifying the file key, path is required.
+    );
+  }
+}
+
+
+/**
+ * Implements hook_field_load().
+ */
+function commerce_pos_gift_card_field_load($entity_type, $entities, $field, $instances, $langcode, &$items, $age) {
+  // Unserialize data arrays.
+  foreach ($entities as $id => $entity) {
+    foreach ($items[$id] as $delta => $item) {
+      // Unserialize the data array if necessary.
+      if (!empty($items[$id][$delta]['data']) && !is_array($items[$id][$delta]['data'])) {
+        $items[$id][$delta]['data'] = unserialize($items[$id][$delta]['data']);
+      }
+    }
+  }
+}
+
+/**
+ * Converts gift card history field data to a serialized array.
+ *
+ * @param $entity_type
+ *   The entity type variable passed through hook_field_storage_pre_*().
+ * @param $entity
+ *   The entity variable passed through hook_field_storage_pre_*().
+ */
+function _commerce_pos_gift_card_field_serialize_data($entity_type, $entity) {
+  // Loop over all the price fields attached to this entity.
+  foreach (_commerce_pos_gift_card_get_history_fields($entity_type, $entity) as $field_name) {
+    // Iterate over the items arrays for each language.
+    foreach (array_keys($entity->{$field_name}) as $langcode) {
+      $items = isset($entity->{$field_name}[$langcode]) ? $entity->{$field_name}[$langcode] : array();
+
+      // Serialize data arrays before saving.
+      foreach ($items as $delta => $item) {
+        // Serialize an existing data array.
+        if (!empty($item['data']) && is_array($item['data'])) {
+          $entity->{$field_name}[$langcode][$delta]['data'] = serialize($item['data']);
+        }
+      }
+    }
+  }
+}
+
+/**
+ * Converts saved gift card history field data columns back to arrays for use in the rest of
+ * the current page request execution.
+ *
+ * @param $entity_type
+ *   The entity type variable passed through hook_field_attach_*().
+ * @param $entity
+ *   The entity variable passed through hook_field_attach_*().
+ */
+function _commerce_pos_gift_card_field_unserialize_data($entity_type, $entity) {
+  // Loop over all the gift card history fields attached to this entity.
+  foreach (_commerce_pos_gift_card_get_history_fields($entity_type, $entity) as $field_name) {
+    // Iterate over the items arrays for each language.
+    foreach (array_keys($entity->{$field_name}) as $langcode) {
+      $items = isset($entity->{$field_name}[$langcode]) ? $entity->{$field_name}[$langcode] : array();
+
+      // For each item in the array, unserialize or initialize its data array.
+      foreach ($items as $delta => $item) {
+        // If we have a non-array $item['data'], unserialize it.
+        if (!empty($item['data']) && !is_array($item['data'])) {
+          $entity->{$field_name}[$langcode][$delta]['data'] = unserialize($item['data']);
+        }
+        // If we have no data element (or an existing empty), create an empty
+        // array.
+        elseif (empty($item['data'])) {
+          $entity->{$field_name}[$langcode][$delta]['data'] = array('components' => array());
+        }
+      }
+    }
+  }
+}
+
+/**
+ * Implements hook_field_storage_pre_insert().
+ */
+function commerce_pos_gift_card_field_storage_pre_insert($entity_type, $entity) {
+  _commerce_pos_gift_card_field_serialize_data($entity_type, $entity);
+}
+
+/**
+ * Implements hook_field_storage_pre_update().
+ */
+function commerce_pos_gift_card_field_storage_pre_update($entity_type, $entity) {
+  _commerce_pos_gift_card_field_serialize_data($entity_type, $entity);
+}
+
+/**
+ * Implements hook_field_attach_insert().
+ *
+ * This hook is used to unserialize the history field's data array after it has
+ * been inserted, because the data array is serialized before it is saved and
+ * must be unserialized for compatibility with API requests performed during the
+ * same request after the insert occurs.
+ */
+function commerce_pos_gift_card_field_attach_insert($entity_type, $entity) {
+  _commerce_pos_gift_card_field_unserialize_data($entity_type, $entity);
+}
+
+/**
+ * Implements hook_field_update().
+ *
+ * This hook is used to unserialize the history field's data array after it has
+ * been updated, because the data array is serialized before it is saved and
+ * must be unserialized for compatibility with API requests performed during the
+ * same request after the update occurs.
+ */
+function commerce_pos_gift_card_field_attach_update($entity_type, $entity) {
+  _commerce_pos_gift_card_field_unserialize_data($entity_type, $entity);
+}
+
+/**
+ * Implements of hook_field_is_empty().
+ */
+function commerce_pos_gift_card_field_is_empty($item, $field) {
+  return !isset($item['card_number']) || (string) $item['card_number'] == '';
+}
+
+/**
+ * Returns an array of commerce_pos_gift_card_history field names from a specific entity.
+ *
+ * @param $entity_type
+ *   The entity type variable passed through hook_field_storage_pre_*() or
+ *   hook_field_attach_*().
+ * @param $entity
+ *   The entity variable passed through hook_field_storage_pre_*() or
+ *   hook_field_attach_*().
+ *
+ * @return array
+ *   An array of commerce_pos_gift_card_history field names or an empty array if none are found.
+ */
+function _commerce_pos_gift_card_get_history_fields($entity_type, $entity) {
+  $commerce_pos_gift_card_history_fields = array();
+
+  // Determine the list of instances to iterate on.
+  list(, , $bundle) = entity_extract_ids($entity_type, $entity);
+  $instances = field_info_instances($entity_type, $bundle);
+  $fields = field_info_fields();
+
+  // Iterate through the instances and collect results.
+  foreach ($instances as $instance) {
+    $field_name = $instance['field_name'];
+
+    // If the instance is a history field with data...
+    if ($fields[$field_name]['type'] == 'commerce_pos_gift_card_history' && isset($entity->{$field_name})) {
+      $commerce_pos_gift_card_history_fields[] = $field_name;
+    }
+  }
+
+  return $commerce_pos_gift_card_history_fields;
+}
+
+/**
+ * Implements hook_feeds_plugins().
+ */
+function commerce_pos_gift_card_feeds_plugins() {
+  $path = drupal_get_path('module', 'commerce_pos_gift_card') . '/plugins';
+
+  $info = array();
+  $info['FeedsCommercePOSGiftCardProcessor'] = array(
+    'name' => 'Commerce POS Gift Card processor',
+    'description' => 'Create and update gift cards.',
+    'help' => 'Create and update gift cards from parsed content.',
+    'handler' => array(
+      'parent' => 'FeedsProcessor',
+      'class' => 'FeedsCommercePOSGiftCardProcessor',
+      'file' => 'FeedsCommercePOSGiftCardProcessor.inc',
+      'path' => $path,
+    ),
+  );
+
+  return $info;
+}
+

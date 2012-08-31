@@ -1,0 +1,7 @@
+name = Commerce POS Gift Card Register Currency
+description = Defines support for currency gift card payments and sales at the register.
+package = Commerce (contrib)
+dependencies[] = commerce_pos_gift_card_register
+
+core = 7.x
+

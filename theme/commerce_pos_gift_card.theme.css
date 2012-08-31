@@ -1,0 +1,12 @@
+
+/**
+ * @file
+ * Basic styling for the Commerce POS Gift Card module.
+ */
+
+.commerce-pos-gift-card-sku-label,
+.commerce-pos-gift-card-title-label,
+.commerce-pos-gift-card-status-label {
+  display: inline;
+  font-weight: bold;
+}

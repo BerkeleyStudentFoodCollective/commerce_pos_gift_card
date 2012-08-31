@@ -1,0 +1,8 @@
+name = Commerce POS Gift Card Register
+description = Defines support for gift card payments and sales at the register.
+package = Commerce (contrib)
+dependencies[] = commerce_pos
+dependencies[] = commerce_pos_payment
+dependencies[] = commerce_pos_line_item
+core = 7.x
+

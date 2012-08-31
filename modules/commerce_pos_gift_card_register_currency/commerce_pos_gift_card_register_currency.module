@@ -1,0 +1,128 @@
+<?php
+
+/**
+ * @file
+ * Defines the functions needed to process currency gift card payments in Commerce POS.
+ */
+
+/**
+ * Implements hook_commerce_pos_gift_card_register_gift_card_type_info().
+ */
+function commerce_pos_gift_card_register_currency_commerce_pos_gift_card_register_gift_card_type_info() {
+  return array(
+    'currency' => array(
+      'base' => 'commerce_pos_gift_card_register_currency',
+      'title' => t('Currency'),
+    )
+  );
+}
+
+/**
+ * Payment form callback for currency gift card type.
+ */
+function commerce_pos_gift_card_register_currency_payment_form($card_info = array(), $order = NULL) {
+  $form = array();
+
+  if (!empty($order)) {
+    $wrapper = entity_metadata_wrapper('commerce_order', $order);
+  }
+
+  $default_currency_code = empty($order) ? commerce_pos_default_currency() : $wrapper->commerce_order_total->currency_code->value();
+  $card_amount = commerce_currency_convert($card_info['amount'], $card_info['currency_code'], $default_currency_code);
+  $order_amount = empty($order) ? 0 : $wrapper->commerce_order_total->amount->value();
+  $default_amount = min($card_amount, $order_amount);
+
+  $form['decimal'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Amount'),
+    '#default_value' => commerce_currency_amount_to_decimal($default_amount, $default_currency_code),
+    '#size' => 10,
+  );
+
+  // Build a currency options list from all enabled currencies.
+  $options = array();
+
+  foreach (commerce_currencies(TRUE) as $currency_code => $currency) {
+    $options[$currency_code] = check_plain($currency['code']);
+  }
+
+  $form['currency_code'] = array(
+    '#type' => 'select',
+    '#options' => $options,
+    '#default_value' => $default_currency_code,
+  );
+
+  return $form;
+}
+
+/**
+ * Add balance form callback for currency gift card type.
+ */
+function commerce_pos_gift_card_register_currency_add_balance_form($card_info = array(), $order = NULL) {
+  $form = array();
+
+  if (!empty($order)) {
+    $wrapper = entity_metadata_wrapper('commerce_order', $order);
+  }
+
+  $default_currency_code = !empty($order) ? $wrapper->commerce_order_total->currency_code->value() : commerce_pos_default_currency();
+
+  $form['decimal'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Amount'),
+    '#size' => 10,
+  );
+
+  // Build a currency options list from all enabled currencies.
+  $options = array();
+
+  foreach (commerce_currencies(TRUE) as $currency_code => $currency) {
+    $options[$currency_code] = check_plain($currency['code']);
+  }
+
+  $form['currency_code'] = array(
+    '#type' => 'select',
+    '#options' => $options,
+    '#default_value' => $default_currency_code,
+  );
+
+  return $form;
+}
+
+/**
+ * Payment form validation callback for currency gift card type.
+ */
+function commerce_pos_gift_card_register_currency_payment_form_validate($values, $order) {
+  if (!is_numeric($values['decimal'])) {
+    return array(t('The payment amount must be numeric.'));
+  }
+}
+
+/**
+ * Add balance form validation callback for currency gift card type.
+ */
+function commerce_pos_gift_card_register_currency_add_balance_form_validate($values, $order) {
+  if (!is_numeric($values['decimal'])) {
+    return array(t('The amount must be numeric.'));
+  }
+}
+
+/**
+ * Payment amount calculation callback for currency gift card type.
+ */
+function commerce_pos_gift_card_register_currency_payment_amount_calculate($values, $order) {
+  return array(
+    'amount' => commerce_currency_decimal_to_amount($values['decimal'], $values['currency_code']),
+    'currency_code' => $values['currency_code'],
+  );
+}
+
+/**
+ * Payment form validation callback for currency gift card type.
+ */
+function commerce_pos_gift_card_register_currency_line_item_base_price($line_item, $data) {
+  return array(
+    'amount' => commerce_currency_decimal_to_amount($data['decimal'], $data['currency_code']),
+    'currency_code' => $data['currency_code'],
+  );
+}
