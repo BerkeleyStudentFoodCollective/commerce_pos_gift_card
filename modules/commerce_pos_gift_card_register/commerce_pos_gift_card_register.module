@@ -1018,13 +1018,13 @@ function commerce_pos_gift_card_register_form_commerce_pos_settings_form_alter(&
       '#type' => 'textfield',
       '#title' => t('Gift card server username'),
       '#description' => t('The username for the gift card server.'),
-      '#default_value' => commerce_pos_gift_card_register_server_location(),
+      '#default_value' => commerce_pos_gift_card_register_server_username(),
     ),
     'commerce_pos_gift_card_register_server_password' => array(
       '#type' => 'password',
       '#title' => t('Gift card server password'),
       '#description' => t('The password for the gift card server.'),
-      '#default_value' => commerce_pos_gift_card_register_server_location(),
+      '#default_value' => commerce_pos_gift_card_register_server_password(),
     ),
   );
 }
