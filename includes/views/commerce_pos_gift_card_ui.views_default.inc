@@ -74,7 +74,7 @@ function commerce_pos_gift_card_ui_views_default_views() {
   $handler->display->display_options['tab_options']['weight'] = '0';
   $handler->display->display_options['tab_options']['name'] = 'management';
   
-  $views['commerce_pos_gift_card_list'] = $view;  
+  $views[$view->name] = $view;  
 
   return $views;
 }
