@@ -72,7 +72,9 @@ function commerce_pos_gift_card_ui_views_default_views() {
   $handler->display->display_options['tab_options']['title'] = 'Gift cards';
   $handler->display->display_options['tab_options']['description'] = 'Manage gift cards in the store.';
   $handler->display->display_options['tab_options']['weight'] = '0';
-  $handler->display->display_options['tab_options']['name'] = 'management';  
+  $handler->display->display_options['tab_options']['name'] = 'management';
+  
+  $views['commerce_pos_gift_card_list'] = $view;  
 
   return $views;
 }
