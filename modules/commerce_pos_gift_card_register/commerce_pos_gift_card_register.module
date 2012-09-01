@@ -8,7 +8,7 @@
 /**
  * Implements hook_hook_info().
  */
-function commerce_pos_gift_card_hook_info() {
+function commerce_pos_gift_card_register_hook_info() {
   $hooks = array(
     'commerce_pos_gift_card_register_gift_card_type_info' => array(
       'group' => 'commerce',
