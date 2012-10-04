@@ -904,7 +904,8 @@ function commerce_pos_gift_card_register_request($targeted_action, $url_paramete
     return json_decode($response->data);
   }
   else {
-    $session_data = commerce_pos_gift_card_register_get_session_data();
+    $session_data = commerce_pos_gift_card_register_login();
+    commerce_pos_gift_card_register_set_session_data($session_data);
     $response = _commerce_pos_gift_card_register_request($targeted_action, $url_parameters, $request_data, $session_data);
     if ($response->code == 200) {
       return json_decode($response->data);
