@@ -5,6 +5,7 @@ dependencies[] = rules
 dependencies[] = commerce
 dependencies[] = services
 dependencies[] = ctools
+dependencies[] = rest_server
 core = 7.x
 
 ; Module includes
