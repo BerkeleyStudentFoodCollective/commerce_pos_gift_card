@@ -1034,7 +1034,7 @@ function commerce_pos_gift_card_services_resources() {
               'description' => 'The transaction id of the transaction to void.',
             ),
           ),
-          'access callback' => '_commerce_pos_gift_card_void_transaction',
+          'access callback' => '_commerce_pos_gift_card_access',
           'access arguments' => array('edit'),
           'access arguments append' => TRUE,
         ),
