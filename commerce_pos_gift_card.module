@@ -841,10 +841,16 @@ function commerce_pos_gift_card_info($gift_card) {
  *  @param $gift_card
  *    A fully loaded gift card entity.
  */
-function commerce_pos_gift_card_format_transaction_amount($gift_card) {
+function commerce_pos_gift_card_format_transaction_amount($transaction, $gift_card) {
   $gift_card_type = commerce_pos_gift_card_type_load($gift_card->type);
   $callback = commerce_pos_gift_card_type_callback($gift_card_type, 'format_transaction_amount');
-  return $callback($gift_card);
+
+  if (!empty($callback)) {
+    return $callback($transaction, $gift_card);
+  }
+  else {
+    return array();
+  }
 }
 
 /**
@@ -872,7 +878,7 @@ function commerce_pos_gift_card_add_balance($gift_card, $data) {
       'type' => 'add',
       'transaction_id' => $transaction_id,
       'created' => REQUEST_TIME,
-      'changed' => REQUEST_TIME,      
+      'changed' => REQUEST_TIME,
     );
     $history[] = $transaction;
 
@@ -1300,8 +1306,8 @@ function commerce_pos_gift_card_field_widget_form(&$form, &$form_state, $field, 
  */
 function commerce_pos_gift_card_field_formatter_info() {
   return array(
-    'commerce_pos_gift_card_history_table' => array(
-      'label' => t('History'),
+    'commerce_pos_gift_card_history_default' => array(
+      'label' => t('History default'),
       'field types' => array('commerce_pos_gift_card_history'),
       'settings' => array(),
     ),
@@ -1339,7 +1345,6 @@ function commerce_pos_gift_card_field_formatter_view($entity_type, $entity, $fie
         '#header' => $header,
         '#rows' => $rows,
       );
-
       return $element;
   }
 }

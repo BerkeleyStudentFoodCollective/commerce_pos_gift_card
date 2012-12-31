@@ -162,7 +162,7 @@ class CommercePosGiftCardEntityController extends DrupalCommerceEntityController
     );
 
     // Add the default fields inherent to the gift card entity.
-    $content['sku'] = array(
+    $content['card_number'] = array(
       '#markup' => theme('commerce_pos_gift_card_number', array('card_number' => $gift_card->card_number, 'label' => t('Card number:'), 'gift_card' => $gift_card)),
       '#attached' => $attached,
     );
