@@ -248,6 +248,14 @@ function commerce_pos_gift_card_views_data() {
       'handler' => 'views_handler_argument_node_created_week',
     ),
   );
+  
+  $data['commerce_pos_gift_card']['balance'] = array(
+    'field' => array(
+      'title' => t('Balance'),
+      'help' => t('The current balance of the gift card.'),
+      'handler' => 'commerce_pos_gift_card_handler_field_gift_card_balance',
+    ),
+  );
 
   // Expose links to operate on the gift card.
   $data['commerce_pos_gift_card']['view_gift_card'] = array(
@@ -257,6 +265,7 @@ function commerce_pos_gift_card_views_data() {
       'handler' => 'commerce_pos_gift_card_handler_field_gift_card_link',
     ),
   );
+  
   $data['commerce_pos_gift_card']['edit_gift_card'] = array(
     'field' => array(
       'title' => t('Edit link'),
@@ -287,6 +296,7 @@ function commerce_pos_gift_card_views_data() {
       'handler' => 'commerce_pos_gift_card_handler_area_empty_text',
     ),
   );
+  
 
   return $data;
 }

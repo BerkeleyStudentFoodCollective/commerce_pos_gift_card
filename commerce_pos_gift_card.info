@@ -17,6 +17,7 @@ files[] = includes/views/handlers/commerce_pos_gift_card_handler_argument_gift_c
 files[] = includes/views/handlers/commerce_pos_gift_card_handler_field_gift_card.inc
 files[] = includes/views/handlers/commerce_pos_gift_card_handler_field_gift_card_type.inc
 files[] = includes/views/handlers/commerce_pos_gift_card_handler_field_gift_card_link.inc
+files[] = includes/views/handlers/commerce_pos_gift_card_handler_field_gift_card_balance.inc
 files[] = includes/views/handlers/commerce_pos_gift_card_handler_field_gift_card_link_delete.inc
 files[] = includes/views/handlers/commerce_pos_gift_card_handler_field_gift_card_link_edit.inc
 files[] = includes/views/handlers/commerce_pos_gift_card_handler_field_gift_card_operations.inc

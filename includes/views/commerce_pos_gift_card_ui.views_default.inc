@@ -31,14 +31,46 @@ function commerce_pos_gift_card_ui_views_default_views() {
   $handler->display->display_options['pager']['type'] = 'full';
   $handler->display->display_options['pager']['options']['items_per_page'] = '100';
   $handler->display->display_options['style_plugin'] = 'table';
-  /* Field: Commerce POS Gift Card: Gift Card ID */
-  $handler->display->display_options['fields']['gift_card_id']['id'] = 'gift_card_id';
-  $handler->display->display_options['fields']['gift_card_id']['table'] = 'commerce_pos_gift_card';
-  $handler->display->display_options['fields']['gift_card_id']['field'] = 'gift_card_id';
+  $handler->display->display_options['style_options']['columns'] = array(
+    'gift_card_id' => 'gift_card_id',
+    'card_number' => 'card_number',
+    'operations' => 'operations',
+  );
+  $handler->display->display_options['style_options']['default'] = 'card_number';
+  $handler->display->display_options['style_options']['info'] = array(
+    'gift_card_id' => array(
+      'sortable' => 1,
+      'default_sort_order' => 'asc',
+      'align' => '',
+      'separator' => '',
+      'empty_column' => 0,
+    ),
+    'card_number' => array(
+      'sortable' => 1,
+      'default_sort_order' => 'asc',
+      'align' => '',
+      'separator' => '',
+      'empty_column' => 0,
+    ),
+    'operations' => array(
+      'align' => '',
+      'separator' => '',
+      'empty_column' => 0,
+    ),
+  );
   /* Field: Commerce POS Gift Card: Card number */
   $handler->display->display_options['fields']['card_number']['id'] = 'card_number';
   $handler->display->display_options['fields']['card_number']['table'] = 'commerce_pos_gift_card';
   $handler->display->display_options['fields']['card_number']['field'] = 'card_number';
+  /* Field: Commerce POS Gift Card: Created date */
+  $handler->display->display_options['fields']['created']['id'] = 'created';
+  $handler->display->display_options['fields']['created']['table'] = 'commerce_pos_gift_card';
+  $handler->display->display_options['fields']['created']['field'] = 'created';
+  $handler->display->display_options['fields']['created']['date_format'] = 'long';
+  /* Field: Commerce POS Gift Card: Balance */
+  $handler->display->display_options['fields']['balance']['id'] = 'balance';
+  $handler->display->display_options['fields']['balance']['table'] = 'commerce_pos_gift_card';
+  $handler->display->display_options['fields']['balance']['field'] = 'balance';
   /* Field: Commerce POS Gift Card: Operations links */
   $handler->display->display_options['fields']['operations']['id'] = 'operations';
   $handler->display->display_options['fields']['operations']['table'] = 'commerce_pos_gift_card';
@@ -61,6 +93,7 @@ function commerce_pos_gift_card_ui_views_default_views() {
 
   /* Display: Page */
   $handler = $view->new_display('page', 'Page', 'page');
+  $handler->display->display_options['defaults']['hide_admin_links'] = FALSE;
   $handler->display->display_options['path'] = 'admin/commerce/gift_cards/list';
   $handler->display->display_options['menu']['type'] = 'default tab';
   $handler->display->display_options['menu']['title'] = 'Gift cards';
@@ -73,6 +106,7 @@ function commerce_pos_gift_card_ui_views_default_views() {
   $handler->display->display_options['tab_options']['description'] = 'Manage gift cards in the store.';
   $handler->display->display_options['tab_options']['weight'] = '0';
   $handler->display->display_options['tab_options']['name'] = 'management';
+
   
   $views[$view->name] = $view;  
 
